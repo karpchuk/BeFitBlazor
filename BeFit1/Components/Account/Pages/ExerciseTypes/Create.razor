@@ -1,0 +1,72 @@
+﻿@page "/exercise-types/create"
+@attribute [Authorize(Roles = "Admin")]
+
+@using BeFit1.Models
+@inject BeFit1.Data.ApplicationDbContext Db
+
+<PageTitle>Dodaj typ ćwiczenia</PageTitle>
+
+@if (saved)
+{
+    <div class="alert alert-success">
+        Typ ćwiczenia został dodany.
+    </div>
+
+    <NavLink class="btn btn-primary"
+             href="/exercise-types"
+             forceLoad="true">
+        Wróć do listy
+    </NavLink>
+}
+else
+{
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <h3 class="card-title mb-3">Dodaj typ ćwiczenia</h3>
+
+            <EditForm Model="model"
+                      OnValidSubmit="SaveAsync"
+                      FormName="CreateExerciseType"
+                      method="post">
+
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+
+                <div class="mb-3">
+                    <label class="form-label">Nazwa ćwiczenia</label>
+                    <InputText class="form-control"
+                               @bind-Value="model.Nazwa" />
+                    <div class="form-text">
+                        Np. „Przysiad”, „Wyciskanie leżąc”.
+                    </div>
+                    <ValidationMessage For="() => model.Nazwa" />
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button class="btn btn-primary" type="submit">
+                        Zapisz
+                    </button>
+
+                    <NavLink class="btn btn-outline-secondary"
+                             href="/exercise-types">
+                        Anuluj
+                    </NavLink>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@code {
+    [SupplyParameterFromForm]
+    private ExerciseType model { get; set; } = new();
+
+    private bool saved;
+
+    private async Task SaveAsync()
+    {
+        Db.ExerciseTypes.Add(model);
+        await Db.SaveChangesAsync();
+        saved = true;
+    }
+}

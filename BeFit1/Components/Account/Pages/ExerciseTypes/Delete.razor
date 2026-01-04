@@ -1,0 +1,80 @@
+﻿@page "/exercise-types/delete/{Id:int}"
+@attribute [Authorize(Roles = "Admin")]
+
+@using BeFit1.Models
+@inject BeFit1.Data.ApplicationDbContext Db
+
+<PageTitle>Usuń typ ćwiczenia</PageTitle>
+
+@if (model == null)
+{
+    <div class="alert alert-warning">
+        Nie znaleziono rekordu.
+    </div>
+}
+else if (deleted)
+{
+    <div class="alert alert-success">
+        Typ ćwiczenia został usunięty.
+    </div>
+
+    <NavLink class="btn btn-primary"
+             href="/exercise-types"
+             forceLoad="true">
+        Wróć do listy
+    </NavLink>
+}
+else
+{
+    <EditForm Model="model"
+              OnValidSubmit="ConfirmAsync"
+              FormName="DeleteExerciseType"
+              method="post">
+
+        <div class="card shadow-sm border-danger">
+            <div class="card-body">
+                <h3 class="text-danger mb-3">
+                    Usunąć typ ćwiczenia?
+                </h3>
+
+                <p>
+                    Nazwa: <strong>@model.Nazwa</strong>
+                </p>
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-danger">
+                        Tak, usuń
+                    </button>
+
+                    <NavLink class="btn btn-outline-secondary"
+                             href="/exercise-types">
+                        Anuluj
+                    </NavLink>
+                </div>
+            </div>
+        </div>
+    </EditForm>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private ExerciseType? model;
+    private bool deleted;
+
+    protected override async Task OnInitializedAsync()
+    {
+        model = await Db.ExerciseTypes.FindAsync(Id);
+    }
+
+    private async Task ConfirmAsync()
+    {
+        if (model is null)
+            return;
+
+        Db.ExerciseTypes.Remove(model);
+        await Db.SaveChangesAsync();
+
+        deleted = true;
+    }
+}

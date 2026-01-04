@@ -1,0 +1,149 @@
+﻿@page "/performed-exercises/edit/{Id:int}"
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+@using BeFit1.Models
+@using Microsoft.EntityFrameworkCore
+@inject BeFit1.Data.ApplicationDbContext Db
+@inject AuthenticationStateProvider Auth
+@inject NavigationManager Nav
+
+<PageTitle>Edytuj wykonane ćwiczenie</PageTitle>
+
+<h3>Edytuj wykonane ćwiczenie</h3>
+
+@if (!string.IsNullOrWhiteSpace(error))
+{
+    <div class="alert alert-danger">
+        @error
+    </div>
+
+    <NavLink class="btn btn-outline-secondary"
+             href="/performed-exercises">
+        Wróć do listy
+    </NavLink>
+}
+else if (saved)
+{
+    <div class="alert alert-success">
+        Zapisano zmiany.
+    </div>
+
+    <NavLink class="btn btn-primary mt-2"
+             href="/performed-exercises"
+             forceLoad="true">
+        Wróć do listy
+    </NavLink>
+}
+else if (model == null)
+{
+    <div class="alert alert-secondary">
+        Ładowanie danych...
+    </div>
+}
+else
+{
+    <EditForm Model="model"
+              OnSubmit="SaveAsync"
+              FormName="EditPerformedExercise"
+              method="post">
+
+        <DataAnnotationsValidator />
+        <ValidationSummary class="text-danger" />
+
+        <div class="mb-2">
+            <label>Ćwiczenie</label>
+            <InputSelect class="form-control" @bind-Value="model.ExerciseTypeId">
+                @foreach (var e in exerciseTypes)
+                {
+                    <option value="@e.Id">@e.Nazwa</option>
+                }
+            </InputSelect>
+        </div>
+
+        <div class="mb-2">
+            <label>Sesja</label>
+            <InputSelect class="form-control" @bind-Value="model.TrainingSessionId">
+                @foreach (var s in sessions)
+                {
+                    <option value="@s.Id">
+                        @s.Start.ToLocalTime().ToString("dd.MM.yyyy HH:mm")
+                    </option>
+                }
+            </InputSelect>
+        </div>
+
+        <InputNumber class="form-control mb-2"
+                     @bind-Value="model.Serie"
+                     placeholder="Serie" />
+
+        <InputNumber class="form-control mb-2"
+                     @bind-Value="model.Powtorzenia"
+                     placeholder="Powtórzenia" />
+
+        <InputNumber class="form-control mb-2"
+                     @bind-Value="model.Obciazenie"
+                     placeholder="Obciążenie" />
+
+        <button type="submit" class="btn btn-primary">
+            Zapisz
+        </button>
+
+        <button type="button"
+                class="btn btn-outline-secondary ms-2"
+                @onclick="@(() => Nav.NavigateTo("/performed-exercises"))">
+            Anuluj
+        </button>
+    </EditForm>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private PerformedExercise? model;
+    private List<ExerciseType> exerciseTypes = new();
+    private List<TrainingSession> sessions = new();
+
+    private bool saved;
+    private string? error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var userId = (await Auth.GetAuthenticationStateAsync())
+            .User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)
+            ?.Value;
+
+        if (string.IsNullOrEmpty(userId))
+        {
+            error = "Nie jesteś zalogowany.";
+            return;
+        }
+
+        model = await Db.PerformedExercises
+            .FirstOrDefaultAsync(x => x.Id == Id && x.UserId == userId);
+
+        if (model == null)
+        {
+            error = "Nie znaleziono ćwiczenia lub nie należy do Ciebie.";
+            return;
+        }
+
+        exerciseTypes = await Db.ExerciseTypes
+            .OrderBy(x => x.Nazwa)
+            .ToListAsync();
+
+        sessions = await Db.TrainingSessions
+            .Where(s => s.UserId == userId)
+            .OrderByDescending(s => s.Start)
+            .ToListAsync();
+    }
+
+    private async Task SaveAsync(EditContext _)
+    {
+        if (model == null)
+            return;
+
+        await Db.SaveChangesAsync();
+        saved = true;
+    }
+}

@@ -1,0 +1,97 @@
+﻿@page "/training-sessions/delete/{Id:int}"
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+
+@using Microsoft.EntityFrameworkCore
+@inject BeFit1.Data.ApplicationDbContext Db
+@inject AuthenticationStateProvider Auth
+
+<PageTitle>Usuń sesję</PageTitle>
+
+@if (!string.IsNullOrWhiteSpace(error))
+{
+    <div class="alert alert-danger">
+        @error
+    </div>
+
+    <NavLink class="btn btn-outline-secondary mt-2"
+             href="/training-sessions">
+        Wróć do listy
+    </NavLink>
+}
+else if (deleted)
+{
+    <div class="alert alert-success">
+        Sesja treningowa została usunięta.
+    </div>
+
+    <NavLink class="btn btn-primary mt-2"
+             href="/training-sessions">
+        Wróć do listy
+    </NavLink>
+}
+else
+{
+    <div class="card shadow-sm border-danger">
+        <div class="card-body">
+            <h3 class="text-danger mb-3">
+                Usunąć sesję treningową?
+            </h3>
+
+            <button class="btn btn-danger me-2"
+                    @onclick="DeleteAsync">
+                Tak, usuń
+            </button>
+
+            <NavLink class="btn btn-outline-secondary"
+                     href="/training-sessions">
+                Anuluj
+            </NavLink>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private bool deleted;
+    private string? error;
+
+    private async Task DeleteAsync()
+    {
+        var authState = await Auth.GetAuthenticationStateAsync();
+        var userId = authState.User
+            .FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)
+            ?.Value;
+
+        if (string.IsNullOrEmpty(userId))
+        {
+            error = "Nie jesteś zalogowany.";
+            return;
+        }
+
+        var session = await Db.TrainingSessions
+            .FirstOrDefaultAsync(s => s.Id == Id && s.UserId == userId);
+
+        if (session == null)
+        {
+            error = "Nie znaleziono sesji lub nie należy do Ciebie.";
+            return;
+        }
+
+        var hasExercises = await Db.PerformedExercises
+            .AnyAsync(e => e.TrainingSessionId == session.Id);
+
+        if (hasExercises)
+        {
+            error = "Nie możesz usunąć sesji, która zawiera wykonane ćwiczenia.";
+            return;
+        }
+
+        Db.TrainingSessions.Remove(session);
+        await Db.SaveChangesAsync();
+
+        deleted = true;
+    }
+}

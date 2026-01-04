@@ -1,0 +1,90 @@
+﻿@page "/performed-exercises/delete/{Id:int}"
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+@using Microsoft.EntityFrameworkCore
+@inject BeFit1.Data.ApplicationDbContext Db
+@inject AuthenticationStateProvider Auth
+
+<PageTitle>Usuń wykonane ćwiczenie</PageTitle>
+
+@if (!string.IsNullOrWhiteSpace(error))
+{
+    <div class="alert alert-danger">
+        @error
+    </div>
+
+    <NavLink class="btn btn-outline-secondary mt-2"
+             href="/performed-exercises">
+        Wróć do listy
+    </NavLink>
+}
+else if (deleted)
+{
+    <div class="alert alert-success">
+        Wykonane ćwiczenie zostało usunięte.
+    </div>
+
+    <NavLink class="btn btn-primary mt-2"
+             href="/performed-exercises">
+        Wróć do listy
+    </NavLink>
+}
+else
+{
+    <div class="card shadow-sm border-danger">
+        <div class="card-body">
+            <h3 class="text-danger mb-3">
+                Usunąć wykonane ćwiczenie?
+            </h3>
+
+            <div class="d-flex gap-2">
+                <button class="btn btn-danger"
+                        @onclick="ConfirmDeleteAsync">
+                    Tak, usuń
+                </button>
+
+                <NavLink class="btn btn-outline-secondary"
+                         href="/performed-exercises">
+                    Anuluj
+                </NavLink>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private bool deleted;
+    private string? error;
+
+    private async Task ConfirmDeleteAsync()
+    {
+        error = null;
+
+        var userId = (await Auth.GetAuthenticationStateAsync())
+            .User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)
+            ?.Value;
+
+        if (string.IsNullOrEmpty(userId))
+        {
+            error = "Nie jesteś zalogowany.";
+            return;
+        }
+
+        var item = await Db.PerformedExercises
+            .FirstOrDefaultAsync(x => x.Id == Id && x.UserId == userId);
+
+        if (item == null)
+        {
+            error = "Nie znaleziono ćwiczenia lub nie należy do Ciebie.";
+            return;
+        }
+
+        Db.PerformedExercises.Remove(item);
+        await Db.SaveChangesAsync();
+
+        deleted = true;
+    }
+}

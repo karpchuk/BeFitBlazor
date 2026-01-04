@@ -1,0 +1,86 @@
+﻿@page "/statistics"
+@attribute [Authorize]
+
+@using BeFit1.Models
+@using Microsoft.EntityFrameworkCore
+@inject BeFit1.Data.ApplicationDbContext Db
+@inject AuthenticationStateProvider Auth
+
+<PageTitle>Statystyki</PageTitle>
+
+<h2 class="mb-3">📊 Statystyki (ostatnie 4 tygodnie)</h2>
+
+@if (stats == null)
+{
+    <div class="alert alert-secondary">Ładowanie danych...</div>
+}
+else if (stats.Count == 0)
+{
+    <div class="alert alert-info">
+        Brak danych z ostatnich 4 tygodni.
+    </div>
+}
+else
+{
+    <div class="card shadow-sm">
+        <table class="table table-striped mb-0 align-middle">
+            <thead>
+                <tr>
+                    <th>Ćwiczenie</th>
+                    <th>Ilość wykonań</th>
+                    <th>Suma powtórzeń</th>
+                    <th>Śr. obciążenie</th>
+                    <th>Max obciążenie</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var s in stats)
+                {
+                    <tr>
+                        <td>@s.NazwaCwiczenia</td>
+                        <td>@s.IloscWykonan</td>
+                        <td>@s.SumaPowtorzen</td>
+                        <td>@s.SrednieObciazenie</td>
+                        <td>@s.MaksymalneObciazenie</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private List<ExerciseStatistics>? stats;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await Auth.GetAuthenticationStateAsync();
+        var userId = authState.User
+            .FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!
+            .Value;
+
+        var fromDate = DateTime.Now.AddDays(-28);
+
+        stats = Db.PerformedExercises
+            .Where(pe =>
+                pe.UserId == userId &&
+                pe.TrainingSession.Start >= new DateTimeOffset(fromDate)) 
+            .GroupBy(pe => pe.ExerciseType.Nazwa)
+            .Select(g => new ExerciseStatistics
+            {
+                NazwaCwiczenia = g.Key,
+                IloscWykonan = g.Count(),
+                SumaPowtorzen = g.Sum(x => x.Serie * x.Powtorzenia),
+
+                // 🔥 RZUTOWANIA — KLUCZ
+                SrednieObciazenie = Math.Round(
+                    (double)g.Average(x => x.Obciazenie),
+                    1
+                ),
+
+                MaksymalneObciazenie = (int)g.Max(x => x.Obciazenie)
+            })
+            .OrderByDescending(x => x.IloscWykonan)
+            .ToList();
+    }
+}

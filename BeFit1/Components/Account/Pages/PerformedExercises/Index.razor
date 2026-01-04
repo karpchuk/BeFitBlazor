@@ -1,0 +1,100 @@
+﻿@page "/performed-exercises"
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+@using BeFit1.Models
+@using Microsoft.EntityFrameworkCore
+@inject BeFit1.Data.ApplicationDbContext Db
+@inject AuthenticationStateProvider Auth
+
+<PageTitle>Wykonane ćwiczenia</PageTitle>
+
+<h2 class="mb-3">✅ Wykonane ćwiczenia</h2>
+
+<NavLink class="btn btn-primary mb-3"
+         href="/performed-exercises/create">
+    ➕ Dodaj ćwiczenie
+</NavLink>
+
+@if (items.Count == 0)
+{
+    <div class="alert alert-info">
+        Nie masz jeszcze wykonanych ćwiczeń.
+    </div>
+}
+else
+{
+    <div class="card shadow-sm">
+        <table class="table table-striped mb-0 align-middle">
+            <thead>
+                <tr>
+                    <th>Ćwiczenie</th>
+                    <th>Serie</th>
+                    <th>Powt.</th>
+                    <th>Obciążenie</th>
+                    <th>Sesja</th>
+                    <th style="width:160px;">Akcje</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var x in items)
+                {
+                    <tr>
+                        <td>@x.ExerciseType.Nazwa</td>
+
+                        <td>
+                            @(x.Serie > 0 ? x.Serie.ToString() : "—")
+                        </td>
+
+                        <td>
+                            @(x.Powtorzenia > 0 ? x.Powtorzenia.ToString() : "—")
+                        </td>
+
+                        <td>
+                            @(x.Obciazenie > 0 ? $"{x.Obciazenie} kg" : "—")
+                        </td>
+
+                        <td>
+                            @(x.TrainingSession.Start
+                                .ToLocalTime()
+                                .ToString("dd.MM.yyyy HH:mm"))
+                        </td>
+
+                        <td>
+                            <NavLink class="btn btn-sm btn-outline-secondary me-1"
+                                     href="@($"/performed-exercises/edit/{x.Id}")">
+                                Edytuj
+                            </NavLink>
+
+                            <NavLink class="btn btn-sm btn-danger"
+                                     href="@($"/performed-exercises/delete/{x.Id}")">
+                                Usuń
+                            </NavLink>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private List<PerformedExercise> items = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var userId = (await Auth.GetAuthenticationStateAsync())
+            .User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)
+            ?.Value;
+
+        if (string.IsNullOrEmpty(userId))
+            return;
+
+        items = await Db.PerformedExercises
+            .Where(x => x.UserId == userId)
+            .Include(x => x.ExerciseType)
+            .Include(x => x.TrainingSession)
+            .OrderByDescending(x => x.TrainingSession.Start)
+            .ToListAsync();
+    }
+}

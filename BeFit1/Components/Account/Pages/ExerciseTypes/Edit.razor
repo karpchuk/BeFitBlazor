@@ -1,0 +1,84 @@
+﻿@page "/exercise-types/edit/{Id:int}"
+@attribute [Authorize(Roles = "Admin")]
+
+@using BeFit1.Models
+@using System.ComponentModel.DataAnnotations
+@inject BeFit1.Data.ApplicationDbContext Db
+
+<h3>Edytuj typ ćwiczenia</h3>
+
+@if (entity is null)
+{
+    <div class="alert alert-danger">Nie znaleziono rekordu</div>
+}
+else
+{
+    <EditForm Model="Input"
+              OnValidSubmit="SaveAsync"
+              FormName="EditExerciseTypeForm"
+              method="post">
+
+        <DataAnnotationsValidator />
+        <ValidationSummary class="text-danger" />
+
+        <div class="mb-3">
+            <label class="form-label">Nazwa</label>
+            <InputText class="form-control" @bind-Value="Input.Nazwa" />
+            <ValidationMessage For="() => Input.Nazwa" class="text-danger" />
+        </div>
+
+        <button type="submit" class="btn btn-primary">
+            Zapisz
+        </button>
+
+        <NavLink class="btn btn-outline-secondary ms-2"
+                 href="/exercise-types"
+                 forceLoad="true">
+            Wróć do listy
+        </NavLink>
+
+        @if (saved)
+        {
+            <div class="alert alert-success mt-3">
+                Zapisano.
+            </div>
+        }
+    </EditForm>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private ExerciseType? entity;
+    private bool saved;
+
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        entity = await Db.ExerciseTypes.FindAsync(Id);
+
+        // Uzupełnienia formularza tylko przy pierwszym renderze (żeby nie nadpisywać wpisywania)
+        if (entity is not null && string.IsNullOrWhiteSpace(Input.Nazwa))
+        {
+            Input.Nazwa = entity.Nazwa;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (entity is null) return;
+
+        entity.Nazwa = Input.Nazwa?.Trim();
+        await Db.SaveChangesAsync();
+
+        saved = true;
+    }
+
+    private sealed class InputModel
+    {
+        [Required(ErrorMessage = "Podaj nazwę")]
+        public string? Nazwa { get; set; }
+    }
+}

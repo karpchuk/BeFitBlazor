@@ -1,0 +1,121 @@
+﻿@implements IDisposable
+@inject NavigationManager NavigationManager
+
+<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <span class="navbar-brand fw-bold">BeFit 💪</span>
+    </div>
+</div>
+
+<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+
+<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
+    <nav class="flex-column">
+
+        <!-- PUBLIC -->
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                🏠 Strona główna
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="exercise-types">
+                🏋️ Typy ćwiczeń
+            </NavLink>
+        </div>
+
+        <!-- ZALOGOWANY UŻYTKOWNIK -->
+        <AuthorizeView>
+            <Authorized>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="training-sessions">
+                        📅 Sesje treningowe
+                    </NavLink>
+                </div>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="performed-exercises">
+                        ✅ Wykonane ćwiczenia
+                    </NavLink>
+                </div>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="statistics">
+                        📊 Statystyki
+                    </NavLink>
+                </div>
+            </Authorized>
+        </AuthorizeView>
+
+        <!-- ADMIN -->
+        <AuthorizeView Roles="Admin">
+            <div class="nav-item px-3 mt-3 text-muted">
+                <strong>Admin</strong>
+            </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="exercise-types/create">
+                    ➕ Dodaj typ ćwiczenia
+                </NavLink>
+            </div>
+        </AuthorizeView>
+
+        <hr class="text-light" />
+
+        <!-- AUTH -->
+        <AuthorizeView>
+            <Authorized>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="Account/Manage">
+                        👤 @context.User.Identity?.Name
+                    </NavLink>
+                </div>
+
+                <div class="nav-item px-3">
+                    <form action="Account/Logout" method="post">
+                        <AntiforgeryToken />
+                        <input type="hidden" name="ReturnUrl" value="@currentUrl" />
+                        <button type="submit" class="nav-link btn btn-link p-0">
+                            🚪 Wyloguj
+                        </button>
+                    </form>
+                </div>
+            </Authorized>
+
+            <NotAuthorized>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="Account/Register">
+                        📝 Rejestracja
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="Account/Login">
+                        🔐 Logowanie
+                    </NavLink>
+                </div>
+            </NotAuthorized>
+        </AuthorizeView>
+
+    </nav>
+</div>
+
+@code {
+    private string? currentUrl;
+
+    protected override void OnInitialized()
+    {
+        currentUrl = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+        NavigationManager.LocationChanged += OnLocationChanged;
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        currentUrl = NavigationManager.ToBaseRelativePath(e.Location);
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        NavigationManager.LocationChanged -= OnLocationChanged;
+    }
+}

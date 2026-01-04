@@ -1,0 +1,136 @@
+﻿@page "/performed-exercises/create"
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+@using BeFit1.Models
+@using Microsoft.EntityFrameworkCore
+@inject BeFit1.Data.ApplicationDbContext Db
+@inject AuthenticationStateProvider Auth
+@inject NavigationManager Nav
+
+<PageTitle>Dodaj wykonane ćwiczenie</PageTitle>
+
+<h3>Dodaj wykonane ćwiczenie</h3>
+
+@if (!string.IsNullOrWhiteSpace(error))
+{
+    <div class="alert alert-danger">@error</div>
+}
+else if (saved)
+{
+    <div class="alert alert-success">
+        Wykonane ćwiczenie zostało dodane.
+    </div>
+
+    <NavLink class="btn btn-primary"
+             href="/performed-exercises"
+             forceLoad="true">
+        Wróć do listy
+    </NavLink>
+}
+else
+{
+    <EditForm Model="model"
+              OnSubmit="Save"
+              FormName="CreatePerformedExercise"
+              method="post">
+
+        <DataAnnotationsValidator />
+        <ValidationSummary class="text-danger" />
+
+        <div class="mb-2">
+            <label>Ćwiczenie</label>
+            <InputSelect class="form-control" @bind-Value="model.ExerciseTypeId">
+                @foreach (var e in exerciseTypes)
+                {
+                    <option value="@e.Id">@e.Nazwa</option>
+                }
+            </InputSelect>
+        </div>
+
+        <div class="mb-2">
+            <label>Sesja</label>
+            <InputSelect class="form-control" @bind-Value="model.TrainingSessionId">
+                @foreach (var s in sessions)
+                {
+                    <option value="@s.Id">
+                        @s.Start.ToLocalTime().ToString("dd.MM.yyyy HH:mm")
+                    </option>
+                }
+            </InputSelect>
+        </div>
+
+        <InputNumber class="form-control mb-2" @bind-Value="model.Serie" placeholder="Serie" />
+        <InputNumber class="form-control mb-2" @bind-Value="model.Powtorzenia" placeholder="Powtórzenia" />
+        <InputNumber class="form-control mb-2" @bind-Value="model.Obciazenie" placeholder="Obciążenie" />
+
+        <button type="submit" class="btn btn-success">
+            Zapisz
+        </button>
+
+        <button type="button" class="btn btn-outline-secondary ms-2"
+                @onclick="@(() => Nav.NavigateTo("/performed-exercises"))">
+            Anuluj
+        </button>
+    </EditForm>
+}
+
+@code {
+    private bool saved;
+    private string? error;
+
+    private PerformedExercise model = new();
+    private List<ExerciseType> exerciseTypes = new();
+    private List<TrainingSession> sessions = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var userId = (await Auth.GetAuthenticationStateAsync())
+            .User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)
+            ?.Value;
+
+        if (string.IsNullOrEmpty(userId))
+        {
+            error = "Nie jesteś zalogowany.";
+            return;
+        }
+
+        exerciseTypes = await Db.ExerciseTypes
+            .OrderBy(x => x.Nazwa)
+            .ToListAsync();
+
+        sessions = await Db.TrainingSessions
+            .Where(s => s.UserId == userId)
+            .OrderByDescending(s => s.Start)
+            .ToListAsync();
+
+        // Ustawenie domyślne wartości (żeby select nie był 0)
+        if (exerciseTypes.Count > 0)
+            model.ExerciseTypeId = exerciseTypes[0].Id;
+
+        if (sessions.Count > 0)
+            model.TrainingSessionId = sessions[0].Id;
+    }
+
+    private async Task Save(EditContext _)
+    {
+        error = null;
+
+        var userId = (await Auth.GetAuthenticationStateAsync())
+            .User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)
+            ?.Value;
+
+        if (string.IsNullOrEmpty(userId))
+        {
+            error = "Nie jesteś zalogowany.";
+            return;
+        }
+
+        model.UserId = userId;
+
+        Db.PerformedExercises.Add(model);
+        await Db.SaveChangesAsync();
+
+        saved = true;
+    }
+}

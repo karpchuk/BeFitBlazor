@@ -1,0 +1,80 @@
+﻿@page "/exercise-types"
+@using BeFit1.Models
+@inject BeFit1.Data.ApplicationDbContext Db
+
+<PageTitle>Typy ćwiczeń</PageTitle>
+
+<div class="d-flex align-items-center justify-content-between mb-3">
+    <div>
+        <h2 class="mb-0">Typy ćwiczeń</h2>
+        <div class="text-muted">Lista dostępnych ćwiczeń</div>
+    </div>
+
+    <AuthorizeView Roles="Admin">
+        <NavLink class="btn btn-primary"
+                 href="/exercise-types/create"
+                 forceLoad="true">
+            ➕ Dodaj
+        </NavLink>
+    </AuthorizeView>
+</div>
+
+@if (items == null)
+{
+    <div class="alert alert-secondary">Ładowanie...</div>
+}
+else if (items.Count == 0)
+{
+    <div class="alert alert-info">
+        Brak typów ćwiczeń.
+    </div>
+}
+else
+{
+    <div class="card shadow-sm">
+        <table class="table table-striped mb-0 align-middle">
+            <thead>
+                <tr>
+                    <th>Nazwa</th>
+                    <AuthorizeView Roles="Admin">
+                        <th style="width:220px;">Akcje</th>
+                    </AuthorizeView>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var x in items)
+                {
+                    <tr>
+                        <td>@x.Nazwa</td>
+                        <AuthorizeView Roles="Admin">
+                            <td>
+                                <NavLink class="btn btn-sm btn-outline-secondary me-2"
+                                         href="@($"/exercise-types/edit/{x.Id}")"
+                                         forceLoad="true">
+                                    Edytuj
+                                </NavLink>
+
+                                <NavLink class="btn btn-sm btn-outline-danger"
+                                         href="@($"/exercise-types/delete/{x.Id}")"
+                                         forceLoad="true">
+                                    Usuń
+                                </NavLink>
+                            </td>
+                        </AuthorizeView>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private List<ExerciseType>? items;
+
+    protected override void OnParametersSet()
+    {
+        items = Db.ExerciseTypes
+            .OrderBy(e => e.Nazwa)
+            .ToList();
+    }
+}

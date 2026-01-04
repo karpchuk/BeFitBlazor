@@ -1,0 +1,87 @@
+﻿@page "/training-sessions"
+@attribute [Authorize]
+
+@using BeFit1.Models
+@inject BeFit1.Data.ApplicationDbContext Db
+@inject AuthenticationStateProvider Auth
+@using Microsoft.EntityFrameworkCore
+
+
+<PageTitle>Sesje treningowe</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0">Sesje treningowe</h2>
+        <div class="text-muted">Twoje treningi</div>
+    </div>
+
+    <NavLink class="btn btn-primary" href="/training-sessions/create">
+        ➕ Nowa sesja
+    </NavLink>
+</div>
+
+@if (sessions == null)
+{
+    <div class="alert alert-secondary">Ładowanie...</div>
+}
+else if (sessions.Count == 0)
+{
+    <div class="alert alert-info">Nie masz jeszcze sesji treningowych.</div>
+}
+else
+{
+    <div class="card shadow-sm">
+        <table class="table table-striped mb-0 align-middle">
+            <thead>
+                <tr>
+                    <th>Start</th>
+                    <th>Koniec</th>
+                    <th style="width:220px;">Akcje</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var s in sessions)
+                {
+                    <tr>
+                        <td>@s.Start.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
+                        <td>@s.Koniec.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
+                        <td>
+                            <NavLink class="btn btn-sm btn-outline-secondary me-2"
+                                     href="@($"/training-sessions/edit/{s.Id}")">
+                                Edytuj
+                            </NavLink>
+
+                            <NavLink class="btn btn-sm btn-outline-danger"
+                                     href="@($"/training-sessions/delete/{s.Id}")">
+                                Usuń
+                            </NavLink>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private List<TrainingSession>? sessions;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await Auth.GetAuthenticationStateAsync();
+        var userId = authState.User
+            .FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)
+            ?.Value;
+
+        if (userId == null)
+        {
+            sessions = new();
+            return;
+        }
+
+        sessions = await Db.TrainingSessions
+            .Where(s => s.UserId == userId)
+            .OrderByDescending(s => s.Start)
+            .ToListAsync();
+    }
+}

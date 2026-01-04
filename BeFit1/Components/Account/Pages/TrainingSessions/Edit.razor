@@ -1,0 +1,124 @@
+﻿    @page "/training-sessions/edit/{Id:int}"
+    @attribute [Authorize]
+    @rendermode InteractiveServer
+
+
+    @using BeFit1.Models
+    @inject BeFit1.Data.ApplicationDbContext Db
+    @inject NavigationManager Nav
+
+    <h3>Edytuj sesję treningową</h3>
+
+    @if (notFound)
+    {
+        <div class="alert alert-danger">Nie znaleziono sesji.</div>
+    }
+    else if (saved)
+    {
+        <div class="alert alert-success">
+            Zapisano zmiany.
+        </div>
+
+        <NavLink class="btn btn-primary"
+                 href="/training-sessions"
+                 forceLoad="true">
+            Wróć do listy
+        </NavLink>
+    }
+    else
+    {
+        <EditForm Model="Input"
+                  OnValidSubmit="SaveAsync"
+                  FormName="EditTrainingSession"
+                  method="post">
+
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger" />
+
+            <div class="mb-3">
+                <label>Początek</label>
+                <input type="datetime-local"
+                       class="form-control"
+                       value="@Input.StartLocal"
+                       @onchange="@((ChangeEventArgs e) => Input.StartLocal = e.Value?.ToString() ?? string.Empty)" />
+            </div>
+
+            <div class="mb-3">
+                <label>Koniec</label>
+                <input type="datetime-local"
+                       class="form-control"
+                       value="@Input.EndLocal"
+                       @onchange="@((ChangeEventArgs e) => Input.EndLocal = e.Value?.ToString() ?? string.Empty)" />
+            </div>
+
+            <button type="submit" class="btn btn-primary">
+                Zapisz
+            </button>
+
+            <NavLink class="btn btn-outline-secondary ms-2"
+                     href="/training-sessions">
+                Anuluj
+            </NavLink>
+        </EditForm>
+    }
+
+    @code {
+        [Parameter] public int Id { get; set; }
+
+        private bool saved;
+        private bool notFound;
+
+        // ✅ NIE SupplyParameterFromForm — bo i tak ustawiasz ręcznie onchange
+        private InputModel Input { get; set; } = new();
+
+       protected override async Task OnInitializedAsync()
+    {
+        var entity = await Db.TrainingSessions.FindAsync(Id);
+        if (entity is null)
+        {
+            notFound = true;
+            return;
+        }
+
+        // 🔥 KLUCZ: NIE NADPISUJ, JEŚLI JUŻ COŚ WPISANO
+        if (string.IsNullOrWhiteSpace(Input.StartLocal))
+        {
+            Input.StartLocal = entity.Start.ToLocalTime()
+                .ToString("yyyy-MM-ddTHH:mm");
+
+            Input.EndLocal = entity.Koniec.ToLocalTime()
+                .ToString("yyyy-MM-ddTHH:mm");
+        }
+    }
+
+
+        private async Task SaveAsync()
+        {
+            // ✅ W SSR bezpieczniej pobrać encję jeszcze raz przy submit
+            var entity = await Db.TrainingSessions.FindAsync(Id);
+            if (entity is null)
+            {
+                notFound = true;
+                return;
+            }
+
+            // opcjonalna walidacja
+            if (string.IsNullOrWhiteSpace(Input.StartLocal) || string.IsNullOrWhiteSpace(Input.EndLocal))
+                return;
+
+            var start = DateTimeOffset.Parse(Input.StartLocal);
+            var end = DateTimeOffset.Parse(Input.EndLocal);
+
+            entity.Start = start;
+            entity.Koniec = end;
+
+            await Db.SaveChangesAsync();
+            saved = true;
+        }
+
+        private sealed class InputModel
+        {
+            public string StartLocal { get; set; } = "";
+            public string EndLocal { get; set; } = "";
+        }
+    }

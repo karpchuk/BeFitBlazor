@@ -1,0 +1,96 @@
+﻿@page "/training-sessions/create"
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+@using BeFit1.Models
+@inject BeFit1.Data.ApplicationDbContext Db
+@inject AuthenticationStateProvider Auth
+
+<h3>Dodaj sesję treningową</h3>
+
+@if (saved)
+{
+    <div class="alert alert-success">
+        Sesja treningowa została dodana.
+    </div>
+
+    <NavLink class="btn btn-primary"
+             href="/training-sessions"
+             forceLoad="true">
+        Wróć do listy
+    </NavLink>
+}
+else
+{
+    <EditForm Model="Input"
+              OnValidSubmit="SaveAsync"
+              FormName="CreateTrainingSession"
+              method="post">
+
+        <DataAnnotationsValidator />
+
+        <div class="mb-3">
+            <label>Początek</label>
+            <input type="datetime-local"
+                   class="form-control"
+                   value="@Input.StartLocal"
+                   @onchange="@((ChangeEventArgs e) =>
+                       Input.StartLocal = e.Value?.ToString() ?? string.Empty)" />
+        </div>
+
+        <div class="mb-3">
+            <label>Koniec</label>
+            <input type="datetime-local"
+                   class="form-control"
+                   value="@Input.EndLocal"
+                   @onchange="@((ChangeEventArgs e) =>
+                       Input.EndLocal = e.Value?.ToString() ?? string.Empty)" />
+        </div>
+
+        <button type="submit" class="btn btn-primary">
+            Zapisz
+        </button>
+    </EditForm>
+}
+
+@code {
+    private bool saved;
+
+    // 🔥 TWORZYSZ SAM — NIGDY NULL
+    private InputModel Input { get; set; } = new();
+
+    protected override void OnInitialized()
+    {
+        Input.StartLocal = DateTime.Now.ToString("yyyy-MM-ddTHH:mm");
+        Input.EndLocal = DateTime.Now.AddHours(1).ToString("yyyy-MM-ddTHH:mm");
+    }
+
+    private async Task SaveAsync()
+    {
+        var authState = await Auth.GetAuthenticationStateAsync();
+        var userId = authState.User
+            .FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)
+            ?.Value;
+
+        if (userId is null)
+            return;
+
+        var entity = new TrainingSession
+        {
+            Start = DateTimeOffset.Parse(Input.StartLocal),
+            Koniec = DateTimeOffset.Parse(Input.EndLocal),
+            UserId = userId
+        };
+
+        Db.TrainingSessions.Add(entity);
+        await Db.SaveChangesAsync();
+
+        saved = true;
+    }
+
+    private sealed class InputModel
+    {
+        public string StartLocal { get; set; } = "";
+        public string EndLocal { get; set; } = "";
+    }
+}
