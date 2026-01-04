@@ -1,1 +1,1 @@
-#BeFit Blazor app
+BeFit Blazor app
